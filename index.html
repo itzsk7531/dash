@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CAR DASH — Coin Rush</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --cyan:#00f5ff; --gold:#ffd700; --orange:#ff6a00;
+  --red:#ff2d55; --green:#39ff14; --purple:#bf5fff;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  background:radial-gradient(ellipse at center,#0a0a18 0%,#04040b 100%);
+  font-family:'Orbitron',monospace;
+  overflow:hidden;user-select:none;
+  height:100vh;display:flex;align-items:center;justify-content:center;
+}
+#road{
+  position:relative;width:360px;height:620px;
+  background:linear-gradient(180deg,#08080f 0%,#111120 100%);
+  overflow:hidden;
+  border-left:2px solid #ffffff0f;border-right:2px solid #ffffff0f;
+  box-shadow:0 0 0 1px #00f5ff18,0 0 60px #00f5ff14,0 0 120px #0004;
+}
+.lane-dash{
+  position:absolute;top:0;bottom:0;width:3px;
+  background:repeating-linear-gradient(180deg,#ffffff18 0px,#ffffff18 28px,transparent 28px,transparent 70px);
+  animation:laneScroll linear infinite;
+}
+@keyframes laneScroll{from{background-position:0 0}to{background-position:0 200px}}
+#road::before,#road::after{content:'';position:absolute;top:0;bottom:0;width:52px;z-index:10;pointer-events:none;}
+#road::before{left:0;background:linear-gradient(90deg,#06060e,transparent);}
+#road::after{right:0;background:linear-gradient(-90deg,#06060e,transparent);}
+/* HUD */
+#hud{
+  position:absolute;top:0;left:0;right:0;height:58px;
+  background:linear-gradient(180deg,#06060e 60%,transparent);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 14px;z-index:30;
+}
+.hud-pill{display:flex;flex-direction:column;align-items:center;}
+.hud-label{font-size:8px;letter-spacing:.18em;color:#ffffff33;text-transform:uppercase;margin-bottom:1px;}
+.hud-val{font-size:20px;font-weight:900;line-height:1;}
+#coin-hud{color:var(--gold);text-shadow:0 0 10px var(--gold);}
+#score-hud{color:var(--cyan);text-shadow:0 0 10px var(--cyan);}
+#best-hud{color:var(--orange);text-shadow:0 0 10px var(--orange);}
+#spd-wrap{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:70px;}
+#spd-track{width:64px;height:5px;background:#ffffff10;border-radius:3px;overflow:hidden;}
+#spd-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--cyan),var(--orange),var(--red));transition:width .3s;box-shadow:0 0 6px var(--cyan);}
+/* cars */
+.car{position:absolute;width:52px;height:88px;}
+#player{z-index:20;transition:left .1s cubic-bezier(.3,0,.2,1);}
+.enemy-car{z-index:15;}
+#player.tilt-left svg{transform:rotate(-6deg);}
+#player.tilt-right svg{transform:rotate(6deg);}
+/* coins */
+.coin{
+  position:absolute;width:28px;height:28px;border-radius:50%;
+  background:radial-gradient(circle at 35% 35%,#fff8a0,#ffd700 55%,#b8860b);
+  border:2.5px solid #ffeabb;
+  box-shadow:0 0 10px #ffd70099,0 0 4px #fff8;
+  z-index:18;display:flex;align-items:center;justify-content:center;
+  animation:coinSpin .6s linear infinite,coinBob 1s ease-in-out infinite alternate;
+}
+.coin::after{content:'✦';color:#fff9;font-size:10px;position:absolute;}
+@keyframes coinSpin{0%{transform:scaleX(1)}25%{transform:scaleX(0.25)}50%{transform:scaleX(1)}75%{transform:scaleX(0.25)}100%{transform:scaleX(1)}}
+@keyframes coinBob{from{margin-top:0}to{margin-top:-4px}}
+/* obstacles */
+.obstacle{position:absolute;}
+.obs-rock{width:48px;height:38px;border-radius:50% 40% 45% 55%;background:radial-gradient(ellipse at 40% 30%,#888,#333);border:2px solid #aaa6;box-shadow:0 4px 12px #0008;}
+.obs-barrier{width:56px;height:34px;background:repeating-linear-gradient(45deg,#ff3300,#ff3300 8px,#ffdd00 8px,#ffdd00 16px);border-radius:4px;border:2px solid #fff3;box-shadow:0 0 12px #ff330066;}
+.obs-spikes{width:58px;height:18px;background:#1a1a1a;border-radius:2px;display:flex;align-items:flex-end;justify-content:space-around;padding:0 2px;border:1px solid #aaa4;}
+.spike{width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:14px solid #ccc;}
+.obs-oil{width:64px;height:22px;border-radius:50%;background:radial-gradient(ellipse,#220044cc,#44009988,transparent);border:1px solid #8800ff44;box-shadow:0 0 18px #8800ff77;}
+.obs-barrel{width:38px;height:46px;border-radius:6px 6px 4px 4px;background:repeating-linear-gradient(180deg,#cc2200 0,#cc2200 8px,#ff4400 8px,#ff4400 16px);border:2px solid #ff6600;box-shadow:0 0 12px #ff440055;}
+/* popup */
+.popup{position:absolute;font-weight:900;font-size:16px;pointer-events:none;z-index:60;animation:popFly .7s ease-out forwards;text-shadow:0 0 8px currentColor;}
+@keyframes popFly{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-55px) scale(1.3)}}
+/* particles */
+.particle{position:absolute;border-radius:50%;pointer-events:none;z-index:62;animation:pFly .65s ease-out forwards;}
+@keyframes pFly{to{opacity:0;transform:translate(var(--tx),var(--ty)) scale(0)}}
+/* screens */
+.screen{position:absolute;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(5,5,14,.92);backdrop-filter:blur(8px);gap:16px;}
+.screen.off{display:none;}
+.game-title{font-size:40px;font-weight:900;letter-spacing:.1em;background:linear-gradient(120deg,var(--cyan) 0%,var(--gold) 50%,var(--orange) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 16px #00f5ff66);animation:titleGlow 2s ease-in-out infinite alternate;}
+@keyframes titleGlow{from{filter:drop-shadow(0 0 10px #00f5ff44)}to{filter:drop-shadow(0 0 30px #ffd70088)}}
+.tag-line{font-family:'Rajdhani',sans-serif;font-size:12px;letter-spacing:.35em;color:#ffffff44;text-transform:uppercase;}
+.btn{font-family:'Orbitron',monospace;font-size:13px;font-weight:700;letter-spacing:.2em;padding:13px 36px;border:2px solid var(--cyan);background:transparent;color:var(--cyan);border-radius:3px;cursor:pointer;text-transform:uppercase;box-shadow:0 0 16px #00f5ff44,inset 0 0 16px #00f5ff0a;transition:all .2s;}
+.btn:hover{background:#00f5ff18;box-shadow:0 0 28px #00f5ffaa;}
+.stat{font-family:'Rajdhani',sans-serif;font-size:14px;letter-spacing:.12em;color:#ffffff44;text-transform:uppercase;display:flex;gap:6px;align-items:center;}
+.stat b{color:var(--gold);font-size:18px;font-weight:700;}
+.over-title{font-size:34px;font-weight:900;letter-spacing:.14em;color:var(--red);text-shadow:0 0 22px var(--red);}
+.kbd{display:inline-block;border:1px solid #ffffff22;border-radius:3px;padding:1px 6px;font-size:10px;color:#ffffff44;background:#ffffff08;margin-right:3px;}
+.hints{display:grid;grid-template-columns:1fr 1fr;gap:5px 18px;font-family:'Rajdhani',sans-serif;font-size:11px;letter-spacing:.1em;color:#ffffff28;text-transform:uppercase;}
+/* pause */
+#pause-tag{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:24px;font-weight:900;letter-spacing:.25em;color:var(--cyan);text-shadow:0 0 18px var(--cyan);z-index:42;display:none;pointer-events:none;animation:blink .8s ease-in-out infinite alternate;}
+@keyframes blink{from{opacity:1}to{opacity:.25}}
+/* touch */
+#touch-zone{position:absolute;bottom:18px;left:0;right:0;display:flex;justify-content:space-between;padding:0 10px;z-index:35;pointer-events:none;}
+.t-btn{pointer-events:all;width:70px;height:70px;border-radius:50%;border:2px solid var(--cyan);background:#00f5ff14;display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--cyan);cursor:pointer;box-shadow:0 0 14px #00f5ff44;-webkit-tap-highlight-color:transparent;transition:background .1s;}
+.t-btn:active{background:#00f5ff30;}
+/* scanlines */
+#scanlines{position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.04) 3px,rgba(0,0,0,.04) 4px);pointer-events:none;z-index:55;}
+/* coin flash */
+@keyframes coinFlash{0%{transform:scale(1)}50%{transform:scale(1.45);color:#fff}100%{transform:scale(1)}}
+.flash{animation:coinFlash .22s ease-out;}
+/* milestone */
+#milestone{position:absolute;top:68px;left:50%;transform:translateX(-50%);font-size:13px;font-weight:700;letter-spacing:.16em;color:var(--gold);text-shadow:0 0 10px var(--gold);z-index:45;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .3s;}
+/* road marks */
+.road-mark{position:absolute;border-radius:2px;pointer-events:none;background:rgba(255,255,255,0.025);}
+</style>
+</head>
+<body>
+<div id="road">
+  <div class="lane-dash" style="left:118px"></div>
+  <div class="lane-dash" style="left:237px"></div>
+  <!-- HUD -->
+  <div id="hud">
+    <div class="hud-pill">
+      <div class="hud-label">Coins</div>
+      <div class="hud-val" id="coin-hud">0</div>
+    </div>
+    <div id="spd-wrap">
+      <div class="hud-label">Speed</div>
+      <div id="spd-track"><div id="spd-fill" style="width:8%"></div></div>
+    </div>
+    <div class="hud-pill">
+      <div class="hud-label">Score</div>
+      <div class="hud-val" id="score-hud">0</div>
+    </div>
+    <div class="hud-pill">
+      <div class="hud-label">Best</div>
+      <div class="hud-val" id="best-hud">0</div>
+    </div>
+  </div>
+  <div id="milestone"></div>
+  <div id="pause-tag">PAUSED</div>
+  <div id="player" class="car"></div>
+  <div id="touch-zone">
+    <div class="t-btn" id="btn-left">◀</div>
+    <div class="t-btn" id="btn-right">▶</div>
+  </div>
+  <div id="scanlines"></div>
+
+  <!-- START -->
+  <div id="start-screen" class="screen">
+    <div class="game-title">CAR DASH</div>
+    <div class="tag-line">Coin Rush Edition</div>
+    <svg width="48" height="84" viewBox="0 0 48 84" fill="none">
+      <rect x="4" y="12" width="40" height="56" rx="8" fill="#00c8d4"/>
+      <rect x="4" y="12" width="40" height="56" rx="8" fill="url(#pg)" opacity=".5"/>
+      <rect x="8" y="18" width="32" height="22" rx="5" fill="#061518"/>
+      <rect x="2" y="27" width="6" height="14" rx="3" fill="#00f5ff" opacity=".6"/>
+      <rect x="40" y="27" width="6" height="14" rx="3" fill="#00f5ff" opacity=".6"/>
+      <rect x="8" y="54" width="10" height="14" rx="4" fill="#111"/>
+      <rect x="30" y="54" width="10" height="14" rx="4" fill="#111"/>
+      <rect x="8" y="6"  width="10" height="12" rx="4" fill="#111"/>
+      <rect x="30" y="6"  width="10" height="12" rx="4" fill="#111"/>
+      <rect x="12" y="68" width="12" height="7" rx="2" fill="#ff4444" opacity=".9"/>
+      <rect x="24" y="68" width="12" height="7" rx="2" fill="#ff4444" opacity=".9"/>
+      <defs><linearGradient id="pg" x1="4" y1="12" x2="44" y2="68" gradientUnits="userSpaceOnUse"><stop stop-color="#fff" stop-opacity=".28"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>
+    </svg>
+    <button class="btn" id="start-btn">START RACE</button>
+    <div class="hints">
+      <div><span class="kbd">◀ ▶</span>Move</div>
+      <div><span class="kbd">P</span>Pause</div>
+      <div><span class="kbd">Space</span>Start</div>
+      <div>Collect <span style="color:var(--gold)">✦</span> coins!</div>
+    </div>
+  </div>
+
+  <!-- GAME OVER -->
+  <div id="over-screen" class="screen off">
+    <div class="over-title">GAME OVER</div>
+    <div class="stat">Score &nbsp;<b id="fs-score">0</b></div>
+    <div class="stat">Coins &nbsp;<b id="fs-coins">0</b></div>
+    <div class="stat">Best &nbsp;&nbsp;<b id="fs-best">0</b></div>
+    <button class="btn" id="restart-btn">PLAY AGAIN</button>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════
+   CAR DASH — Coin Rush  |  Pure Vanilla JS
+   ═══════════════════════════════════════════════ */
+const RW=360,RH=620,CAR_W=52,CAR_H=88;
+const LANE_X=[20,140,260],LANES=3,COIN_SZ=28;
+const SPEED_START=7,SPEED_MAX=22,SPEED_INC=.0014;
+const OBS_TYPES=['car','car','car','rock','barrier','spikes','oil','barrel'];
+const ENEMY_COLS=['#ff4455','#ff9900','#aa44ff','#44bbff','#44ff99','#ff44bb','#ff2222','#33ddff'];
+
+// DOM
+const road=document.getElementById('road');
+const playerEl=document.getElementById('player');
+const coinHud=document.getElementById('coin-hud');
+const scoreHud=document.getElementById('score-hud');
+const bestHud=document.getElementById('best-hud');
+const spdFill=document.getElementById('spd-fill');
+const startScreen=document.getElementById('start-screen');
+const overScreen=document.getElementById('over-screen');
+const pauseTag=document.getElementById('pause-tag');
+const milestoneEl=document.getElementById('milestone');
+
+// State
+let running=false,paused=false,animId=null;
+let playerLane=1,speed=SPEED_START,score=0,coins=0,frame=0;
+let bestScore=parseInt(localStorage.getItem('cdcr2')||'0');
+let obstacles=[],coinItems=[],roadMarks=[];
+let spawnTimer=0,coinTimer=0,tiltTO=null;
+
+// Audio
+let actx=null;
+function initAudio(){if(!actx)actx=new(window.AudioContext||window.webkitAudioContext)();}
+function beep(f,d,t='square',v=.08){
+  if(!actx)return;
+  const o=actx.createOscillator(),g=actx.createGain();
+  o.connect(g);g.connect(actx.destination);
+  o.type=t;o.frequency.value=f;
+  g.gain.setValueAtTime(v,actx.currentTime);
+  g.gain.exponentialRampToValueAtTime(.001,actx.currentTime+d);
+  o.start();o.stop(actx.currentTime+d);
+}
+function playCoin(){beep(880,.06,'sine',.13);setTimeout(()=>beep(1320,.07,'sine',.1),65);}
+function playMove(){beep(180,.05,'sawtooth',.05);}
+function playCrash(){
+  if(!actx)return;
+  const L=actx.sampleRate*.45,buf=actx.createBuffer(1,L,actx.sampleRate),d=buf.getChannelData(0);
+  for(let i=0;i<L;i++)d[i]=(Math.random()*2-1)*Math.max(0,(L-i)/L);
+  const s=actx.createBufferSource(),g=actx.createGain(),f=actx.createBiquadFilter();
+  f.type='bandpass';f.frequency.value=600;f.Q.value=.4;
+  s.buffer=buf;s.connect(f);f.connect(g);g.connect(actx.destination);
+  g.gain.setValueAtTime(.9,actx.currentTime);g.gain.exponentialRampToValueAtTime(.001,actx.currentTime+.45);
+  s.start();s.stop(actx.currentTime+.45);
+  const o=actx.createOscillator(),g2=actx.createGain();
+  o.connect(g2);g2.connect(actx.destination);
+  o.type='sine';o.frequency.setValueAtTime(130,actx.currentTime);
+  o.frequency.exponentialRampToValueAtTime(30,actx.currentTime+.35);
+  g2.gain.setValueAtTime(.6,actx.currentTime);g2.gain.exponentialRampToValueAtTime(.001,actx.currentTime+.35);
+  o.start();o.stop(actx.currentTime+.35);
+}
+
+// Car SVG builder
+function carSVG(col,isPlayer){
+  const body=isPlayer?'#00c8d4':col,glow=isPlayer?'#00f5ff':col,win=isPlayer?'#06151a':'#0d0d1e';
+  const id='cg'+Math.random().toString(36).slice(2,6);
+  return `<svg width="52" height="88" viewBox="0 0 52 88" fill="none">
+    <rect x="5" y="15" width="42" height="56" rx="9" fill="#000" opacity=".22"/>
+    <rect x="4" y="13" width="44" height="56" rx="9" fill="${body}"/>
+    <rect x="4" y="13" width="44" height="56" rx="9" fill="url(#${id})" opacity=".42"/>
+    <rect x="9" y="19" width="34" height="22" rx="5" fill="${win}"/>
+    <rect x="11" y="21" width="14" height="13" rx="3" fill="${glow}" opacity=".1"/>
+    <rect x="6" y="30" width="4" height="13" rx="2" fill="${glow}" opacity=".18"/>
+    <rect x="42" y="30" width="4" height="13" rx="2" fill="${glow}" opacity=".18"/>
+    <rect x="10" y="49" width="32" height="14" rx="4" fill="${win}"/>
+    <rect x="1" y="57" width="10" height="16" rx="4" fill="#12121e"/>
+    <rect x="41" y="57" width="10" height="16" rx="4" fill="#12121e"/>
+    <rect x="1" y="13" width="10" height="16" rx="4" fill="#12121e"/>
+    <rect x="41" y="13" width="10" height="16" rx="4" fill="#12121e"/>
+    <circle cx="6"  cy="65" r="3" fill="#222" stroke="${glow}" stroke-width="1" opacity=".5"/>
+    <circle cx="46" cy="65" r="3" fill="#222" stroke="${glow}" stroke-width="1" opacity=".5"/>
+    <circle cx="6"  cy="21" r="3" fill="#222" stroke="${glow}" stroke-width="1" opacity=".5"/>
+    <circle cx="46" cy="21" r="3" fill="#222" stroke="${glow}" stroke-width="1" opacity=".5"/>
+    ${isPlayer?`
+      <rect x="10" y="73" width="14" height="8" rx="3" fill="#fffbe0" opacity=".95"/>
+      <rect x="28" y="73" width="14" height="8" rx="3" fill="#fffbe0" opacity=".95"/>
+      <rect x="10" y="5"  width="14" height="7" rx="3" fill="#ff3344" opacity=".9"/>
+      <rect x="28" y="5"  width="14" height="7" rx="3" fill="#ff3344" opacity=".9"/>
+    `:`
+      <rect x="10" y="5"  width="14" height="8" rx="3" fill="#fffbe0" opacity=".95"/>
+      <rect x="28" y="5"  width="14" height="8" rx="3" fill="#fffbe0" opacity=".95"/>
+      <rect x="10" y="73" width="14" height="7" rx="3" fill="#ff3344" opacity=".9"/>
+      <rect x="28" y="73" width="14" height="7" rx="3" fill="#ff3344" opacity=".9"/>
+    `}
+    <rect x="24" y="19" width="4" height="50" rx="2" fill="#fff" opacity=".06"/>
+    <defs><linearGradient id="${id}" x1="4" y1="13" x2="48" y2="69" gradientUnits="userSpaceOnUse"><stop stop-color="#fff" stop-opacity=".3"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>
+  </svg>`;
+}
+playerEl.innerHTML=carSVG('#00c8d4',true);
+
+// Build obstacle element
+function buildObs(type){
+  const el=document.createElement('div');
+  el.className='obstacle';
+  if(type==='car'){
+    const c=ENEMY_COLS[Math.floor(Math.random()*ENEMY_COLS.length)];
+    el.classList.add('enemy-car','car');
+    el.style.cssText=`width:${CAR_W}px;height:${CAR_H}px;filter:drop-shadow(0 0 8px ${c}88)`;
+    el.innerHTML=carSVG(c,false);
+    return{el,w:CAR_W,h:CAR_H};
+  }
+  if(type==='rock'){el.classList.add('obs-rock');return{el,w:48,h:38};}
+  if(type==='barrier'){el.classList.add('obs-barrier');return{el,w:56,h:34};}
+  if(type==='spikes'){
+    el.classList.add('obs-spikes');
+    for(let i=0;i<6;i++){const s=document.createElement('div');s.className='spike';el.appendChild(s);}
+    return{el,w:58,h:18};
+  }
+  if(type==='oil'){el.classList.add('obs-oil');return{el,w:64,h:22};}
+  if(type==='barrel'){el.classList.add('obs-barrel');return{el,w:38,h:46};}
+  el.classList.add('obs-barrier');return{el,w:50,h:30};
+}
+
+// Spawn obstacle
+function spawnObstacle(){
+  const used=new Set();
+  const count=(speed>12&&Math.random()<.42)?2:1;
+  for(let c=0;c<count;c++){
+    let lane; do{lane=Math.floor(Math.random()*LANES);}while(used.has(lane));
+    used.add(lane);
+    const type=OBS_TYPES[Math.floor(Math.random()*OBS_TYPES.length)];
+    const{el,w,h}=buildObs(type);
+    const lx=LANE_X[lane]+(CAR_W-w)/2;
+    el.style.left=lx+'px';el.style.top=(-h)+'px';
+    road.appendChild(el);
+    obstacles.push({el,lane,y:-h,w,h,type});
+  }
+}
+
+// Spawn coin
+function spawnCoin(){
+  const lane=Math.floor(Math.random()*LANES);
+  const el=document.createElement('div');
+  el.className='coin';
+  el.style.cssText=`left:${LANE_X[lane]+(CAR_W-COIN_SZ)/2}px;top:${-COIN_SZ}px;`;
+  road.appendChild(el);
+  coinItems.push({el,lane,y:-COIN_SZ});
+}
+
+// Road marks
+for(let i=0;i<14;i++){
+  const el=document.createElement('div');
+  el.className='road-mark';
+  const y=Math.random()*RH;
+  el.style.cssText=`left:${Math.random()*300+10}px;top:${y}px;width:${Math.random()*50+15}px;height:${Math.random()*2+1}px;`;
+  road.appendChild(el);
+  roadMarks.push({el,y});
+}
+
+// Player move
+function moveLane(dir){
+  const nl=Math.max(0,Math.min(LANES-1,playerLane+dir));
+  if(nl===playerLane)return;
+  playerLane=nl;
+  playerEl.style.left=LANE_X[playerLane]+'px';
+  playMove();
+  clearTimeout(tiltTO);
+  playerEl.className=dir<0?'car tilt-left':'car tilt-right';
+  tiltTO=setTimeout(()=>playerEl.className='car',180);
+}
+
+// AABB hit test
+function hit(ax,ay,aw,ah,bx,by,bw,bh,pad=7){
+  return ax+pad<bx+bw-pad&&ax+aw-pad>bx+pad&&ay+pad<by+bh-pad&&ay+ah-pad>by+pad;
+}
+
+// Particles
+function burst(x,y,cols,n=20){
+  for(let i=0;i<n;i++){
+    const p=document.createElement('div');
+    p.className='particle';
+    const sz=Math.random()*10+4,a=Math.random()*Math.PI*2,d=Math.random()*90+20;
+    p.style.cssText=`width:${sz}px;height:${sz}px;left:${x}px;top:${y}px;background:${cols[i%cols.length]};--tx:${Math.cos(a)*d}px;--ty:${Math.sin(a)*d}px;`;
+    road.appendChild(p);
+    setTimeout(()=>p.remove(),750);
+  }
+}
+
+// Popup
+function popup(text,x,y,color){
+  const el=document.createElement('div');
+  el.className='popup';
+  el.style.cssText=`left:${x}px;top:${y}px;color:${color};`;
+  el.textContent=text;
+  road.appendChild(el);
+  setTimeout(()=>el.remove(),750);
+}
+
+// Milestone banner
+function showMilestone(txt){
+  milestoneEl.textContent=txt;
+  milestoneEl.style.opacity='1';
+  setTimeout(()=>milestoneEl.style.opacity='0',1900);
+}
+
+// Game Over
+function gameOver(){
+  running=false;cancelAnimationFrame(animId);playCrash();
+  burst(LANE_X[playerLane]+CAR_W/2,RH-40-CAR_H/2,['#ff4455','#ff9900','#fff','#ff6600','#ffe600'],28);
+  if(score>bestScore){bestScore=score;localStorage.setItem('cdcr2',bestScore);}
+  document.getElementById('fs-score').textContent=Math.floor(score);
+  document.getElementById('fs-coins').textContent=coins;
+  document.getElementById('fs-best').textContent=Math.floor(bestScore);
+  road.style.transition='background .1s';road.style.background='#2a0008';
+  setTimeout(()=>{road.style.background='';overScreen.classList.remove('off');},360);
+}
+
+// Main loop
+function loop(){
+  if(!running||paused)return;
+  animId=requestAnimationFrame(loop);
+  frame++;
+  speed=Math.min(SPEED_MAX,SPEED_START+frame*SPEED_INC);
+  score+=speed*.055;
+
+  scoreHud.textContent=Math.floor(score);
+  bestHud.textContent=Math.max(Math.floor(bestScore),Math.floor(score));
+  spdFill.style.width=((speed-SPEED_START)/(SPEED_MAX-SPEED_START)*88+8)+'%';
+
+  // lane dash speed
+  const dd=Math.max(.1,1.4/speed)+'s';
+  document.querySelectorAll('.lane-dash').forEach(d=>d.style.animationDuration=dd);
+
+  // road marks
+  roadMarks.forEach(m=>{
+    m.y+=speed*.6;m.el.style.top=m.y+'px';
+    if(m.y>RH+20){m.y=-20;m.el.style.left=Math.random()*300+10+'px';}
+  });
+
+  // spawn obstacles
+  spawnTimer++;
+  const sg=Math.max(25,80-(speed-SPEED_START)*3);
+  if(spawnTimer>=sg){spawnTimer=0;spawnObstacle();}
+
+  // spawn coins
+  coinTimer++;
+  const cg=Math.max(20,55-speed*1.4);
+  if(coinTimer>=cg){coinTimer=0;spawnCoin();}
+
+  const py=RH-40-CAR_H,px=LANE_X[playerLane];
+
+  // move & check obstacles
+  for(let i=obstacles.length-1;i>=0;i--){
+    const o=obstacles[i];
+    o.y+=speed;o.el.style.top=o.y+'px';
+    if(hit(px,py,CAR_W,CAR_H,LANE_X[o.lane]+(CAR_W-o.w)/2,o.y,o.w,o.h)){gameOver();return;}
+    if(o.y>RH+20){o.el.remove();obstacles.splice(i,1);}
+  }
+
+  // move & collect coins
+  for(let i=coinItems.length-1;i>=0;i--){
+    const c=coinItems[i];
+    c.y+=speed*.82;c.el.style.top=c.y+'px';
+    const cx=LANE_X[c.lane]+(CAR_W-COIN_SZ)/2;
+    if(hit(px,py,CAR_W,CAR_H,cx,c.y,COIN_SZ,COIN_SZ,2)){
+      coins++;score+=10;coinHud.textContent=coins;
+      coinHud.classList.remove('flash');void coinHud.offsetWidth;coinHud.classList.add('flash');
+      popup('+10',cx+2,c.y,'#ffd700');
+      burst(cx+COIN_SZ/2,c.y+COIN_SZ/2,['#ffd700','#fff8a0','#ffee00','#fff'],10);
+      playCoin();c.el.remove();coinItems.splice(i,1);
+      if(coins===10) showMilestone('🪙 10 COINS!');
+      else if(coins===25) showMilestone('🪙 25 COINS! GREAT!');
+      else if(coins===50) showMilestone('⚡ 50 COINS! INSANE!');
+      else if(coins===100) showMilestone('🏆 100 COINS! LEGEND!');
+      continue;
+    }
+    if(c.y>RH+20){c.el.remove();coinItems.splice(i,1);}
+  }
+
+  // score milestones
+  const sc=Math.floor(score),psc=Math.floor(score-speed*.055);
+  if(sc>=500&&psc<500)  showMilestone('🚀 500 PTS!');
+  if(sc>=1000&&psc<1000)showMilestone('💥 1000 PTS!');
+  if(sc>=2000&&psc<2000)showMilestone('🔥 SPEED DEMON!');
+  if(sc>=5000&&psc<5000)showMilestone('👑 5000 PTS! KING!');
+}
+
+// Start/Restart
+function startGame(){
+  initAudio();
+  running=false;paused=false;
+  frame=0;score=0;coins=0;speed=SPEED_START;spawnTimer=0;coinTimer=0;
+  obstacles.forEach(o=>o.el.remove());obstacles=[];
+  coinItems.forEach(c=>c.el.remove());coinItems=[];
+  document.querySelectorAll('.particle,.popup').forEach(e=>e.remove());
+  playerLane=1;
+  playerEl.style.cssText=`left:${LANE_X[1]}px;bottom:40px;`;
+  playerEl.className='car';
+  coinHud.textContent='0';scoreHud.textContent='0';bestHud.textContent=Math.floor(bestScore);
+  milestoneEl.style.opacity='0';
+  startScreen.classList.add('off');overScreen.classList.add('off');pauseTag.style.display='none';
+  running=true;animId=requestAnimationFrame(loop);
+}
+
+// Controls
+document.addEventListener('keydown',e=>{
+  if(e.code==='ArrowLeft'){e.preventDefault();if(running&&!paused)moveLane(-1);}
+  if(e.code==='ArrowRight'){e.preventDefault();if(running&&!paused)moveLane(1);}
+  if(e.code==='KeyP'){togglePause();}
+  if((e.code==='Space'||e.code==='Enter')&&!running){
+    if(!startScreen.classList.contains('off')||!overScreen.classList.contains('off'))startGame();
+  }
+});
+
+document.getElementById('btn-left').addEventListener('touchstart',e=>{e.preventDefault();initAudio();if(running&&!paused)moveLane(-1);},{passive:false});
+document.getElementById('btn-right').addEventListener('touchstart',e=>{e.preventDefault();initAudio();if(running&&!paused)moveLane(1);},{passive:false});
+document.getElementById('btn-left').addEventListener('mousedown',()=>{if(running&&!paused)moveLane(-1);});
+document.getElementById('btn-right').addEventListener('mousedown',()=>{if(running&&!paused)moveLane(1);});
+document.getElementById('start-btn').addEventListener('click',startGame);
+document.getElementById('restart-btn').addEventListener('click',startGame);
+
+function togglePause(){
+  if(!running)return;paused=!paused;
+  pauseTag.style.display=paused?'block':'none';
+  if(!paused)animId=requestAnimationFrame(loop);
+}
+bestHud.textContent=Math.floor(bestScore);
+</script>
+</body>
+</html>
